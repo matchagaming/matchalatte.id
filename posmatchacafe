@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>PURNAMA ALAM COFFEE – POS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+@page{size:A6;margin:5mm}
+*{box-sizing:border-box;font-family:Calibri,Arial}
+body{margin:0;background:#f3e5d8}
+.hidden{display:none}
+header{background:#6f4e37;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+.logout-btn{background:#c0392b;padding:6px 12px;border:none;border-radius:6px;color:#fff;cursor:pointer}
+.container{padding:16px}
+.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:16px}
+.admin-card{border:2px solid #d7b899;background:#fffaf3}
+input,select{padding:8px;border-radius:8px;border:1px solid #bbb;width:100%;margin-bottom:8px}
+button{border:none;border-radius:8px;padding:8px 12px;cursor:pointer;background:#6f4e37;color:#fff;margin:4px 0}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+th,td{border:1px solid #ccc;padding:6px;vertical-align:middle}
+th{background:#eee;text-align:left}
+.menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,2fr));gap:10px}
+.menu-item{border:1px solid #ccc;border-radius:10px;padding:8px;text-align:center}
+.menu-item img{width:100%;height:90px;object-fit:cover;border-radius:8px}
+.trans-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center}
+.trans-grid label{justify-self:start}
+.trans-grid input, .trans-grid select{justify-self:end}
+#drinkOverlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999}
+#drinkBox{background:#fff;border-radius:12px;padding:16px;width:360px;display:grid;grid-template-columns:1fr auto;gap:8px}
+#drinkBox h4{grid-column:1/-1;text-align:center;margin:0 0 8px 0}
+#drinkBox label{display:flex;align-items:center;gap:8px;white-space:nowrap}
+#drinkBox table{width:100%;border-collapse:collapse;margin-top:8px}
+#drinkBox td{padding:4px;vertical-align:middle}
+#drinkBox td:first-child{text-align:left;width:50%}
+#drinkBox td:last-child{text-align:left;width:50%}
+#drinkBox input[type=radio], #drinkBox input[type=checkbox]{transform:scale(1.2);margin-right:6px;vertical-align:middle;}
+@media print{
+  body *{visibility:hidden;}
+  #strukArea, #strukArea *{visibility:visible;}
+  #strukArea{position:absolute;left:0;top:0;width:105mm;font-family:monospace;}
+}
+/* ===== POPUP MEMBER KASIR ===== */
+.member-overlay{
+  position:fixed;
+  top:0;left:0;
+  width:100%;height:100%;
+  background:rgba(0,0,0,.45);
+  display:none;
+  justify-content:center;
+  align-items:center;
+  z-index:9999;
+}
+
+.member-popup{
+  background:#fff;
+  width:380px;
+  border-radius:8px;
+  padding:16px;
+  box-shadow:0 8px 20px rgba(0,0,0,.25);
+}
+
+.member-popup h3{
+  margin-top:0;
+  text-align:center;
+}
+
+.member-popup label{
+  font-size:13px;
+  display:block;
+  margin-top:8px;
+}
+
+.member-popup input{
+  width:100%;
+  padding:6px;
+  margin-top:3px;
+  box-sizing:border-box;
+}
+
+.member-popup .btn-group{
+  display:flex;
+  justify-content:space-between;
+  margin-top:14px;
+}
+
+.member-popup button{
+  padding:6px 12px;
+  cursor:pointer;
+}
+.riwayat-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.5);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:9999;
+}
+.riwayat-box{
+  background:#fff;
+  width:520px;
+  max-height:80vh;
+  overflow:auto;
+  border-radius:8px;
+  padding:14px;
+}
+</style>
+</head>
+<body>
+<header>
+<strong>Purnama Alam Coffee – POS</strong>
+<div>
+<span id="userInfo"></span>
+<button id="memberKasirBtn" class="hidden" onclick="openMemberKasir()">Member</button>
+<button class="logout-btn hidden" id="logoutBtn" onclick="logout()">Logout</button>
+</div>
+</header>
+
+<div id="loginBox" class="card" style="max-width:360px;margin:40px auto">
+<h3 style="text-align:center">Login</h3>
+<input id="loginUser" placeholder="Username">
+<input id="loginPass" type="password">
+<button style="width:100%" onclick="login()">Login</button>
+</div>
+
+<div class="container">
+<!-- ADMIN -->
+<div id="adminPage" class="hidden">
+<div class="card admin-card">
+<h3>Manajemen Akun</h3>
+<input id="au" placeholder="Username">
+<input id="ap" placeholder="Password">
+<input id="an" placeholder="Nama">
+<select id="ar"><option>admin</option><option>kasir</option></select>
+<button onclick="addUser()">Tambah</button>
+<table>
+<thead><tr><th>User</th><th>Nama</th><th>Role</th><th>Aksi</th></tr></thead>
+<tbody id="userTable"></tbody>
+</table>
+</div>
+
+<div class="card admin-card">
+<h3>Manajemen Member</h3>
+<input id="mwa" placeholder="Nomor WhatsApp">
+<input id="mnm" placeholder="Nama">
+<input id="mdob" type="date" placeholder="Tanggal Lahir">
+<button onclick="addMember()">Tambah Member</button>
+<table>
+<thead><tr><th>WhatsApp</th><th>Nama</th><th>Tanggal Lahir</th><th>Poin</th><th>Jenis</th><th>Aksi</th></tr></thead>
+<tbody id="memberTable"></tbody>
+</table>
+</div>
+
+<div class="card admin-card">
+<h3>Manajemen Menu</h3>
+<input id="mn" placeholder="Nama Menu">
+<input id="mh" type="number" placeholder="Harga">
+<input id="mi" placeholder="URL Gambar">
+<select id="mt">
+  <option value="coffee">Coffee</option>
+  <option value="non-coffee">Non-Coffee</option>
+  <option value="food">Food</option>
+</select>
+
+<button onclick="addMenu()">Tambah</button>
+<table>
+<thead><tr><th>Menu</th><th>Harga</th><th>Jenis</th><th>Aksi</th></tr></thead>
+<tbody id="menuTable"></tbody>
+</table>
+</div>
+
+<div class="card admin-card">
+<h3>Manajemen Voucher</h3>
+<input id="voucherMinInput" type="number" placeholder="Minimal Transaksi">
+<button onclick="saveVoucher()">Simpan</button>
+</div>
+
+<div class="card admin-card">
+<h3>Laporan Harian / Bulanan</h3>
+<label>Pilih Tanggal:</label>
+<input type="date" id="lapTgl" value="">
+<label>Pilih Bulan:</label>
+<input type="month" id="lapBulan" value="">
+<button onclick="lihatLaporan()">Lihat Laporan</button>
+<div id="laporanArea" style="margin-top:8px; max-height:300px; overflow:auto;"></div>
+<div id="laporanTotal" style="margin-top:8px;font-weight:bold;"></div>
+</div>
+</div>
+
+<!-- KASIR -->
+<div id="kasirPage" class="hidden">
+<div class="card">
+<h3>Menu</h3>
+<div id="menuTabs" style="display:flex;gap:8px;margin-bottom:8px">
+  <button onclick="renderMenuByCategory('coffee')">Coffee</button>
+  <button onclick="renderMenuByCategory('non-coffee')">Non-Coffee</button>
+  <button onclick="renderMenuByCategory('food')">Food</button>
+</div>
+<div class="menu-grid" id="menuGrid"></div>
+
+<div class="card">
+<h3>Keranjang <span id="transIdDisplay"></span></h3>
+<table>
+<thead><tr><th>Menu</th><th>Qty</th><th>Harga</th><th>Aksi</th></tr></thead>
+<tbody id="cartBody"></tbody>
+</table>
+</div>
+
+<div class="card">
+<h3>Transaksi</h3>
+<div class="trans-grid">
+<!-- ===== Jenis Layanan dipindahkan ke atas ===== -->
+<label>Layanan</label>
+<select id="layananSelect">
+<option>Dine In</option>
+<option>Take Away</option>
+</select>
+
+<label>Customer</label>
+<select id="customerType" onchange="switchCustomerType()">
+<option value="non">Non-Member</option>
+<option value="member">Member</option>
+</select>
+<label>Nomor WhatsApp</label>
+<div style="display:flex; gap:4px;">
+<input id="customerWA" placeholder="Nomor WhatsApp" oninput="validateWALive(this)">
+
+<button onclick="cariMember()">Cari</button>
+</div>
+<label>Nama</label>
+<input id="customerName">
+<label>Subtotal</label><input id="subTotal" readonly>
+<label>Diskon (%)</label><input id="diskon" value="0">
+<label>Pajak (%)</label><input id="pajak" value="0">
+<label>Total</label><input id="totalBayar" readonly>
+<label>Metode Bayar</label>
+<select id="metodeBayar" onchange="updateMetodeBayar()">
+<option value="tunai">Tunai</option>
+<option value="non-tunai">QRIS</option>
+</select>
+<label id="bayarLabel">Bayar</label><input id="bayar">
+<label id="kembaliLabel">Kembali</label><input id="kembali" readonly>
+</div>
+<button onclick="activateVoucher()">Aktifkan Voucher</button>
+<button onclick="cetakStruk()">Cetak Struk</button>
+<button onclick="resetTransaksi()">Reset</button>
+</div>
+
+<div class="card hidden" id="strukPreviewCard">
+<h3>Preview Struk</h3>
+<div id="strukArea"></div>
+</div>
+
+<script>
+    // ===== ELEMENTS =====
+const loginUser = document.getElementById("loginUser");
+const loginPass = document.getElementById("loginPass");
+const loginBox = document.getElementById("loginBox");
+const logoutBtn = document.getElementById("logoutBtn");
+const userInfo = document.getElementById("userInfo");
+const adminPage = document.getElementById("adminPage");
+const kasirPage = document.getElementById("kasirPage");
+const voucherMinInput = document.getElementById("voucherMinInput");
+const userTable = document.getElementById("userTable");
+const memberTable = document.getElementById("memberTable");
+const menuTable = document.getElementById("menuTable");
+const menuGrid = document.getElementById("menuGrid");
+const cartBody = document.getElementById("cartBody");
+const transIdDisplay = document.getElementById("transIdDisplay");
+const customerType = document.getElementById("customerType");
+const customerWA = document.getElementById("customerWA");
+const customerName = document.getElementById("customerName");
+const subTotal = document.getElementById("subTotal");
+const diskon = document.getElementById("diskon");
+const pajak = document.getElementById("pajak");
+const totalBayar = document.getElementById("totalBayar");
+const bayar = document.getElementById("bayar");
+const kembali = document.getElementById("kembali");
+const metodeBayar = document.getElementById("metodeBayar");
+const strukPreviewCard = document.getElementById("strukPreviewCard");
+const strukArea = document.getElementById("strukArea");
+const laporanArea = document.getElementById("laporanArea");
+const laporanTotal = document.getElementById("laporanTotal");
+const lapTgl = document.getElementById("lapTgl");
+const lapBulan = document.getElementById("lapBulan");
+const layananSelect = document.getElementById("layananSelect");
+
+// ===== STORAGE =====
+const LS=k=>JSON.parse(localStorage.getItem(k));
+const SS=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+
+let users=LS("users")||[{u:"admin",p:"admin123",n:"Admin",r:"admin"},{u:"kasir",p:"kasir123",n:"Kasir",r:"kasir"}];
+let members=LS("members")||[];
+let menus=LS("menus")||[];
+let voucherMin=LS("voucherMin")||0;
+let laporan=LS("laporan")||[];
+
+let cart=[],currentUser=null,voucherAktif=false;
+let diskonNominal=0,pajakNominal=0;
+let currentTransactionId=null,currentTransactionIdSaved=false;
+
+// ===== LOGIN =====
+function login(){
+  let f=users.find(x=>x.u===loginUser.value && x.p===loginPass.value);
+  if(!f) return alert("Login gagal");
+  currentUser=f;
+  loginBox.classList.add("hidden");
+  logoutBtn.classList.remove("hidden");
+  userInfo.innerText=f.n+" ("+f.r+")";
+  if(f.r==="admin"){
+    adminPage.classList.remove("hidden");
+    renderUsers(); renderMenus(); renderMembers();
+    voucherMinInput.value=voucherMin;
+  } else {
+    kasirPage.classList.remove("hidden");
+    generateTransactionId();
+    setupMenuTabs();
+    updateMetodeBayar();
+    resetCustomerFields();
+	document.getElementById("memberKasirBtn").classList.remove("hidden");
+  }
+}
+function logout(){
+  let btn=document.getElementById("memberKasirBtn");
+  if(btn) btn.classList.add("hidden");
+  location.reload();
+}
+
+// ===== ADMIN FUNCTIONS =====
+function renderUsers(){
+  userTable.innerHTML="";
+  users.forEach((x,i)=>{
+    userTable.innerHTML+=`<tr>
+      <td>${x.u}</td><td>${x.n}</td><td>${x.r}</td>
+      <td><button onclick="users.splice(${i},1);SS('users',users);renderUsers()">❌</button></td>
+    </tr>`;
+  });
+}
+function addMenu(){
+  if(!mn.value || !mh.value) return alert("Lengkapi data menu");
+  menus.push({n:mn.value,h:+mh.value,img:mi.value,t:mt.value});
+  SS("menus",menus);
+  renderMenus();
+  mn.value = "";
+  mh.value = "";
+  mi.value = "";
+}
+function editMenu(i){
+  let m = menus[i];
+
+  // Jika popup sudah ada, jangan buat lagi
+  if(document.getElementById("menuEditOverlay")) return;
+
+  let overlay = document.createElement("div");
+  overlay.id = "menuEditOverlay";
+  overlay.style.position = "fixed";
+  overlay.style.inset = "0";
+  overlay.style.background = "rgba(0,0,0,0.5)";
+  overlay.style.display = "flex";
+  overlay.style.alignItems = "center";
+  overlay.style.justifyContent = "center";
+  overlay.style.zIndex = "9999";
+
+  overlay.innerHTML = `
+    <div style="background:#fff;padding:16px;border-radius:8px;width:360px;max-width:90%;box-shadow:0 8px 20px rgba(0,0,0,.25)">
+      <h3 style="text-align:center;margin-top:0">Edit Menu</h3>
+      <label>Nama Menu</label>
+      <input id="editMenuName" type="text" value="${m.n}" style="width:100%;padding:6px;margin-bottom:8px">
+      
+      <label>Harga Menu</label>
+      <input id="editMenuPrice" type="number" value="${m.h}" style="width:100%;padding:6px;margin-bottom:8px">
+      
+      <label>URL Gambar</label>
+      <input id="editMenuImg" type="text" value="${m.img}" style="width:100%;padding:6px;margin-bottom:8px">
+      
+      <label>Jenis Menu</label>
+      <select id="editMenuType" style="width:100%;padding:6px;margin-bottom:12px">
+        <option value="coffee" ${m.t==="coffee"?"selected":""}>Coffee</option>
+        <option value="non-coffee" ${m.t==="non-coffee"?"selected":""}>Non-Coffee</option>
+        <option value="food" ${m.t==="food"?"selected":""}>Food</option>
+      </select>
+      
+      <div style="display:flex;justify-content:space-between">
+        <button onclick="saveEditMenu(${i})" style="padding:6px 12px;background:#27ae60;color:#fff;border:none;border-radius:6px;cursor:pointer">Simpan Edit</button>
+        <button onclick="closeEditMenu()" style="padding:6px 12px;background:#c0392b;color:#fff;border:none;border-radius:6px;cursor:pointer">Batal</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+}
+
+function saveEditMenu(i){
+  let newName = document.getElementById("editMenuName").value.trim();
+  let newPrice = +document.getElementById("editMenuPrice").value;
+  let newImg = document.getElementById("editMenuImg").value.trim();
+  let newType = document.getElementById("editMenuType").value;
+
+  if(!newName || isNaN(newPrice) || !newImg || !["coffee","non-coffee","food"].includes(newType)){
+    return alert("Semua field harus diisi dengan benar!");
+  }
+
+  // Update menu
+  menus[i].n = newName;
+  menus[i].h = newPrice;
+  menus[i].img = newImg;
+  menus[i].t = newType;
+
+  // Simpan ke localStorage & render ulang
+  SS("menus", menus);
+  renderMenus();
+  closeEditMenu();
+
+  alert("Menu berhasil diperbarui!");
+}
+
+function closeEditMenu(){
+  let overlay = document.getElementById("menuEditOverlay");
+  if(overlay) overlay.remove();
+}
+
+function addUser(){
+  if(!au.value || !ap.value || !an.value) return alert("Lengkapi data user");
+  users.push({u:au.value,p:ap.value,n:an.value,r:ar.value});
+  SS("users",users); renderUsers();
+  au.value=ap.value=an.value="";
+}
+
+// ===== MEMBER FUNCTIONS =====
+function renderMembers(){
+  memberTable.innerHTML="";
+  members.forEach((m,i)=>{
+    memberTable.innerHTML+=`<tr>
+      <td>${m.wa}</td><td>${m.n}</td><td>${m.dob}</td>
+      <td>${m.points}</td><td>${m.type}</td>
+      <td>
+		<button onclick="editMember(${i})">✏️</button>
+		<button onclick="lihatRiwayatMember(${i})">📄</button>
+	  </td>
+
+    </tr>`;
+  });
+}
+function addMember(){
+  if(!mwa.value || !mnm.value || !mdob.value) return alert("Lengkapi data member");
+  members.push({wa:mwa.value,n:mnm.value,dob:mdob.value,points:10,type:"Silver"});
+  SS("members",members); renderMembers();
+  mwa.value=mnm.value=mdob.value="";
+}
+function editMember(i){
+  let m = members[i];
+
+  let newWA = prompt("Nomor WhatsApp:", m.wa);
+  if(newWA === null) return;
+
+  newWA = formatWAIndonesia(newWA.trim());
+  if(!isValidWAIndonesia(newWA)){
+    alert("Nomor WhatsApp tidak valid");
+    return;
+  }
+
+  // Cek duplikasi WA (kecuali dirinya sendiri)
+  let duplicate = members.find((x,idx)=>x.wa === newWA && idx !== i);
+  if(duplicate){
+    alert("Nomor WhatsApp sudah digunakan member lain");
+    return;
+  }
+
+  let newName = prompt("Nama:", m.n);
+  if(newName === null) return;
+
+  let newDOB = prompt("Tanggal Lahir (YYYY-MM-DD):", m.dob);
+  if(newDOB === null) return;
+
+  let newPoints = prompt("Poin:", m.points);
+  if(newPoints === null || isNaN(newPoints)) return;
+
+  m.wa = newWA;
+  m.n = newName.trim();
+  m.dob = newDOB;
+  m.points = parseInt(newPoints);
+
+  // Otomatis update jenis member
+  if(m.points >= 500) m.type = "Diamond";
+  else if(m.points >= 200) m.type = "Gold";
+  else m.type = "Silver";
+
+  SS("members", members);
+  renderMembers();
+
+  alert("Data member berhasil diperbarui");
+}
+// ===== MENU =====
+let currentMenuTab = "coffee"; // default tab saat kasir buka halaman
+
+function renderMenus(){
+  menuTable.innerHTML="";
+  menus.forEach((m,i)=>{
+    menuTable.innerHTML+=`<tr>
+      <td>${m.n}</td>
+      <td>${m.h}</td>
+      <td>${m.t.charAt(0).toUpperCase() + m.t.slice(1).replace("-", " ")}</td>
+      <td>
+        <button onclick="editMenu(${i})">✏️</button>
+        <button onclick="menus.splice(${i},1); SS('menus',menus); renderMenus()">❌</button>
+      </td>
+    </tr>`;
+  });
+}
+
+// ===== VOUCHER =====
+function saveVoucher(){voucherMin=+voucherMinInput.value; SS("voucherMin",voucherMin); alert("Voucher disimpan");}
+
+// ===== KASIR FUNCTIONS =====
+function generateTransactionId(){
+  currentTransactionId='TRX-'+Math.random().toString(36).substr(2,6).toUpperCase();
+  transIdDisplay.innerText='[ID: '+currentTransactionId+']';
+}
+// ===== RENDER MENU BERDASARKAN KATEGORI =====
+function renderMenuByCategory(category){
+  menuGrid.innerHTML="";
+
+	let filtered = menus.filter(m => {
+		if(category==="Coffee") return m.t==="coffee";
+		if(category==="Non-Coffee") return m.t==="non-coffee";
+		if(category==="Food") return m.t==="food";
+	});
+
+
+  if(filtered.length === 0){
+    menuGrid.innerHTML = `<p style="text-align:center;color:#888">Tidak ada menu di kategori ${category}</p>`;
+    return;
+  }
+
+  filtered.forEach((m,i)=>{
+    // Cari index asli di array menus
+    let index = menus.indexOf(m);
+    menuGrid.innerHTML+=`<div class="menu-item">
+      <img src="${m.img}">
+      <b>${m.n}</b><br>Rp ${m.h}
+      <button onclick="addCart(${index})">Pilih</button>
+    </div>`;
+  });
+}
+
+// ===== TAMBAHKAN TAB PILIHAN KATEGORI =====
+function setupMenuTabs(){
+  const old = document.getElementById("menuTabs");
+  if(old) old.remove();
+
+  const container = document.createElement("div");
+  container.style.display="flex";
+  container.style.gap="8px";
+  container.style.marginBottom="8px";
+  container.id="menuTabs";
+
+  ["Coffee","Non-Coffee","Food"].forEach(cat=>{
+    let btn=document.createElement("button");
+    btn.innerText=cat;
+    btn.onclick=()=>renderMenuByCategory(cat);
+    container.appendChild(btn);
+  });
+
+  menuGrid.parentNode.insertBefore(container, menuGrid);
+
+  renderMenuByCategory("Coffee"); // default tab
+}
+
+function addCart(i){
+  let m = menus[i];
+  if(m.t === "coffee" || m.t === "non-coffee") showDrinkPopup(i);
+  else {
+    let f = cart.find(c => c.i === i && !c.opt);
+    if(f){ f.q++; } 
+    else { cart.push({i,q:1}); }
+    renderCart();
+  }
+}
+
+// ===== CUSTOMER SELECTION =====
+function switchCustomerType(){
+  let t=customerType.value;
+  if(t==="non"){
+    customerWA.disabled=true; customerName.disabled=false; customerWA.value=""; customerName.value="";
+  } else { customerWA.disabled=false; customerName.disabled=true; customerName.value=""; }
+}
+function resetCustomerFields(){customerType.value="non"; switchCustomerType();}
+function cariMember(){
+  let wa=customerWA.value;
+  let m=members.find(x=>x.wa===wa);
+  if(m) { customerName.value=m.n; alert("Member ditemukan: "+m.n);} 
+  else alert("Member tidak ditemukan");
+}
+// ===== DRINK POPUP =====
+function showDrinkPopup(i){
+  let m=menus[i];
+  let o=document.createElement("div");
+  o.id="drinkOverlay";
+  o.innerHTML=`
+  <div id="drinkBox">
+    <h4>Detail Minuman: ${m.n}</h4>
+    <table>
+      <tr><td>Jenis Minuman</td><td>
+        <select id="drinkType" onchange="updatePopupFields(this.value)">
+          <option>Hot</option>
+          <option>Ice</option>
+        </select>
+      </td></tr>
+      <tr><td>Qty</td><td>
+        <select id="drinkQty">
+          <option>1</option><option>2</option><option>3</option><option>4</option>
+          <option>5</option><option>6</option><option>7</option><option>8</option>
+          <option>9</option><option>10</option>
+        </select>
+        <input type="number" id="drinkQtyCustom" style="display:none;width:60px;" min="1" value="1">
+      </td></tr>
+      <tr><td colspan="2" style="font-weight:bold;border-top:1px solid #ccc;">Sugar</td></tr>
+      <tr><td>Normal Sugar</td><td><input type="radio" name="sugar" value="Normal Sugar" checked></td></tr>
+      <tr><td>Less Sugar</td><td><input type="radio" name="sugar" value="Less Sugar"></td></tr>
+      <tr><td>No Sugar</td><td><input type="radio" name="sugar" value="No Sugar"></td></tr>
+      <tr><td colspan="2" style="font-weight:bold;border-top:1px solid #ccc;">Ice</td></tr>
+      <tr><td>Normal Ice</td><td><input type="radio" name="ice" value="Normal Ice" checked></td></tr>
+      <tr><td>Less Ice</td><td><input type="radio" name="ice" value="Less Ice"></td></tr>
+      <tr><td colspan="2" style="font-weight:bold;border-top:1px solid #ccc;">Topping (+Rp 3000)</td></tr>
+      <tr><td>Boba</td><td><input type="checkbox" name="topping" value="Boba"></td></tr>
+      <tr><td>Oreo</td><td><input type="checkbox" name="topping" value="Oreo"></td></tr>
+      <tr><td>Jelly</td><td><input type="checkbox" name="topping" value="Jelly"></td></tr>
+      <tr><td>Cookies</td><td><input type="checkbox" name="topping" value="Cookies"></td></tr>
+    </table>
+    <div style="grid-column:1/-1;text-align:center;margin-top:8px">
+      <button onclick="saveDrink(${i})">OK</button>
+      <button onclick="cancelDrink()">Batal</button>
+    </div>
+  </div>`;
+  document.body.appendChild(o);
+  updatePopupFields("Hot");
+}
+
+function updatePopupFields(type){
+  let iceRadios = [...document.querySelectorAll('input[name="ice"]')];
+  let toppingCheckboxes = [...document.querySelectorAll('input[name="topping"]')];
+  if(type==="Hot"){
+    iceRadios.forEach(x=>x.disabled=true);
+    toppingCheckboxes.forEach(x=>x.disabled=true);
+  } else{
+    iceRadios.forEach(x=>x.disabled=false);
+    toppingCheckboxes.forEach(x=>x.disabled=false);
+  }
+  document.getElementById("drinkQtyCustom").style.display='none';
+}
+
+function saveDrink(i){
+  let qtySelect=document.getElementById("drinkQty").value;
+  let qty = qtySelect==="Custom"?Math.max(1,+document.getElementById("drinkQtyCustom").value):+qtySelect;
+  let type = document.getElementById("drinkType").value;
+  let sugar = document.querySelector('input[name="sugar"]:checked').value;
+  let ice = document.querySelector('input[name="ice"]:checked') ? document.querySelector('input[name="ice"]:checked').value : "";
+  let toppings = [...document.querySelectorAll('input[name="topping"]:checked')].map(x=>x.value);
+  let opt = [type,sugar];
+  if(type==="Ice"){ opt.push(ice,...toppings); }
+  let toppingPricePerItem = toppings.length * 3000;
+  let totalToppingPrice = toppingPricePerItem * qty; // kalikan dengan qty
+  cart.push({i, q: qty, opt, toppingPrice: totalToppingPrice});
+  cancelDrink();
+  renderCart();
+}
+
+function cancelDrink(){ 
+  let overlay=document.getElementById("drinkOverlay"); 
+  if(overlay) overlay.remove();
+}
+
+// ===== CART =====
+function renderCart(){
+  cartBody.innerHTML="";
+  let sub=0;
+  cart.forEach((x,idx)=>{
+    let m=menus[x.i];
+    let itemPrice = (m.h*x.q) + (x.toppingPrice||0);
+    sub += itemPrice;
+    cartBody.innerHTML+=`<tr>
+      <td>${m.n}<br><small>${x.opt?x.opt.join(","):""}</small></td>
+      <td>${x.q}</td>
+      <td style='text-align:right'>${itemPrice.toLocaleString()}</td>
+      <td>
+        <button onclick="cart.splice(${idx},1);renderCart()">❌</button>
+        <button onclick="editCart(${idx})">✏️</button>
+      </td>
+    </tr>`;
+  });
+  subTotal.value=sub;
+  hitung();
+}
+
+function editCart(idx){ 
+  showDrinkPopup(cart[idx].i); 
+  cart.splice(idx,1);
+}
+
+// ===== HITUNG =====
+function hitung(){
+  let s=+subTotal.value||0;
+  let d=Math.ceil(s*(+diskon.value||0)/100);
+  let p=Math.ceil((s-d)*(+pajak.value||0)/100);
+  let t=s-d+p;
+  totalBayar.value=t;
+  kembali.value=Math.max(0,(+bayar.value||0)-t);
+  diskonNominal=d; pajakNominal=p;
+}
+
+diskon.oninput=pajak.oninput=bayar.oninput=hitung;
+
+function resetTransaksi(){
+  cart=[]; renderCart();
+  diskon.value=pajak.value=bayar.value=kembali.value=0;
+  voucherAktif=false; generateTransactionId(); currentTransactionIdSaved=false;
+  resetCustomerFields();
+  updateMetodeBayar();
+}
+
+// ===== PAYMENT =====
+function updateMetodeBayar(){
+  let tunai=(metodeBayar.value==='tunai');
+  bayar.style.display=tunai?'inline':'none';
+  kembali.style.display=tunai?'inline':'none';
+  document.getElementById('bayarLabel').style.display=tunai?'inline':'none';
+  document.getElementById('kembaliLabel').style.display=tunai?'inline':'none';
+}
+
+// ===== VOUCHER =====
+function activateVoucher(){
+  if(+subTotal.value>=voucherMin){
+    voucherAktif=true;
+    alert("Voucher aktif");
+  } else alert("Belum memenuhi minimal transaksi");
+}
+
+// ===== STRUK =====
+function buildStrukHTML(){
+  let rows="";
+  cart.forEach(x=>{
+    let m=menus[x.i];
+    let itemPrice=(m.h*x.q)+(x.toppingPrice||0);
+    rows+=`<tr><td>${m.n}<br><small>${x.opt?x.opt.join(","):""}</small></td>
+      <td align='center'>${x.q}</td>
+      <td align='right'>${itemPrice.toLocaleString()}</td></tr>`;
+  });
+
+  let memberHTML="", custName=customerName.value, custInfo="";
+  if(customerType.value==="member"){
+    let m=members.find(x=>x.n===custName || x.wa===customerWA.value);
+    if(m){
+      let poinTambahan=Math.floor(+totalBayar.value/10000)*2;
+      m.points+=poinTambahan;
+      SS("members",members);
+      custInfo=`${m.type} | +${poinTambahan} poin | Total: ${m.points} poin`;
+    }
+  }
+
+  let layananText = layananSelect.value;
+
+  let voucherHTML=voucherAktif?`<div style='border:2px dashed #000;padding:8px;margin-top:8px;text-align:center'>
+    <b>LOYALTY VOUCHER</b><br><br>
+    Voucher berlaku <b>3 bulan</b> sejak tanggal transaksi.<br>
+    Kumpulkan <b>10 struk</b> untuk ditukar<br>
+    <b>1 cup kopi GRATIS</b> (semua varian)<br><br>
+    Berlaku sampai:<br>
+    <b>${new Date(new Date().setMonth(new Date().getMonth()+3)).toLocaleDateString()}</b>
+    </div>`:'';
+
+  // Bagi info pelanggan menjadi 2 kolom
+  let now=new Date();
+  return `<div style='width:100mm;font-size:11px;font-family:monospace'>
+    <h3 style='text-align:center;margin:4px 0'>STRUK PEMBAYARAN</h3>
+    <p style='text-align:center;margin:2px 0'>Purnama Alam Coffee</p>
+    <div style="display:grid;grid-template-columns:3fr 1fr;gap:8px">
+      <div>
+        Customer: ${custName}<br>
+        ${custInfo}<br>
+        Metode Bayar: ${metodeBayar.value==='tunai'?'Tunai':'QRIS'}<br>
+        Layanan: ${layananText}
+      </div>
+      <div>
+        ID: ${currentTransactionId}<br>
+        Tanggal: ${now.toLocaleDateString()}<br>
+        Jam: ${now.toLocaleTimeString()}<br>
+        Kasir: ${currentUser.n}
+      </div>
+    </div>
+    <hr>
+    <table width='100%' border='1' cellspacing='0' cellpadding='4'>
+      <tr><th>Menu</th><th>Qty</th><th>Harga (Rp)</th></tr>
+      ${rows}
+    </table>
+    <br>
+    <div style='display:grid;grid-template-columns:1fr auto;gap:4px'>
+      <div>Subtotal</div><div style='text-align:right'>${(+subTotal.value).toLocaleString()}</div>
+      <div>Diskon</div><div style='text-align:right'>${diskonNominal.toLocaleString()}</div>
+      <div>Pajak</div><div style='text-align:right'>${pajakNominal.toLocaleString()}</div>
+      <div><b>Total</b></div><div style='text-align:right'><b>${totalBayar.value.toLocaleString()}</b></div>
+      ${metodeBayar.value==='tunai'?`<div>Bayar</div><div style='text-align:right'>${(+bayar.value).toLocaleString()}</div>
+      <div>Kembali</div><div style='text-align:right'>${(+kembali.value).toLocaleString()}</div>`:''}
+    </div>
+    ${voucherHTML}
+    <p style='text-align:center;margin-top:10px'>Terima kasih ☕<br>Kami tunggu kedatangan Anda kembali</p>
+  </div>`;
+}
+
+function cetakStruk(){
+    // ===== AUTO VOUCHER =====
+    if(+subTotal.value >= voucherMin){
+        voucherAktif = true;
+    }
+
+    // Preview struk
+    strukPreviewCard.classList.remove("hidden");
+    strukArea.innerHTML = buildStrukHTML();
+
+    // Print browser
+    window.print();
+
+    // Save transaksi ke laporan, hanya sekali
+    if(!currentTransactionIdSaved){
+        laporan.push({
+            id: currentTransactionId,
+            kasir: currentUser.n,
+            date: new Date().toISOString(),
+            total: +totalBayar.value,
+            bayar: metodeBayar.value,
+            customer: customerName.value,
+            layanan: layananSelect.value,
+            items: cart.map(x=>({menu:menus[x.i].n, qty:x.q, harga:menus[x.i].h, toppingPrice:x.toppingPrice||0})),
+            voucher: voucherAktif
+        });
+        SS("laporan", laporan);
+        currentTransactionIdSaved = true;
+    }
+
+    // Optional: langsung download PDF juga
+	downloadStrukPDF();
+}
+
+// ===== LAPORAN =====
+function lihatLaporan(){
+  let tgl = lapTgl.value;
+  let bulan = lapBulan.value;
+  let filtered = laporan.filter(l=>{
+    let lDate = new Date(l.date);
+	lDate.setMinutes(lDate.getMinutes() - lDate.getTimezoneOffset());
+    let match=false;
+    if(tgl && lDate.toISOString().slice(0,10)===tgl) match=true;
+    if(bulan && lDate.toISOString().slice(0,7)===bulan) match=true;
+    if(!tgl && !bulan) match=true;
+    return match;
+  });
+
+  let totalPendapatan=0, totalTunai=0, totalQRIS=0, itemSummary={};
+  filtered.forEach(l=>{
+    totalPendapatan+=l.total;
+    if(l.bayar==='tunai') totalTunai+=l.total;
+    else totalQRIS+=l.total;
+    l.items.forEach(it=>{
+      if(!itemSummary[it.menu]) itemSummary[it.menu]=0;
+      itemSummary[it.menu]+=it.qty;
+    });
+  });
+
+  let html = `<p>Jumlah Transaksi: ${filtered.length}</p>`;
+  html += "<table border='1' cellspacing='0' cellpadding='4'><tr><th>ID</th><th>Kasir</th><th>Tanggal</th><th>Total</th><th>Bayar</th></tr>";
+  filtered.forEach(l=>{
+    let lDate = new Date(l.date);
+    lDate.setMinutes(lDate.getMinutes() - lDate.getTimezoneOffset());
+    html += `<tr><td>${l.id}</td><td>${l.kasir}</td><td>${lDate.toLocaleString()}</td><td>${l.total.toLocaleString()}</td><td>${l.bayar==='tunai'?'Tunai':'QRIS'}</td></tr>`;
+  });
+  html += "</table>";
+
+  html += "<p><b>Rincian Item Terjual:</b></p><ul>";
+  for(let key in itemSummary){
+    html += `<li>${key}: ${itemSummary[key]}</li>`;
+  }
+  html += "</ul>";
+
+  laporanArea.innerHTML = html;
+  laporanTotal.innerHTML = `Total Pendapatan: ${totalPendapatan.toLocaleString()} | Tunai: ${totalTunai.toLocaleString()} | QRIS: ${totalQRIS.toLocaleString()}`;
+}
+
+// ===== POPUP RINCIAN TRANSAKSI =====
+function lihatRincianTransaksi(idx){
+  const trx = laporan[idx];
+  const now = new Date(trx.date);
+  
+  let rows = trx.items.map(it=>{
+    let toppingText = it.toppingPrice > 0 ? `(+Rp ${it.toppingPrice.toLocaleString()} topping)` : '';
+    return `<tr>
+      <td>${it.menu} ${toppingText}</td>
+      <td align="center">${it.qty}</td>
+      <td align="right">${it.harga.toLocaleString()}</td>
+    </tr>`;
+  }).join("");
+
+  const overlay = document.createElement("div");
+  overlay.className = "riwayat-overlay";
+  overlay.innerHTML = `
+    <div class="riwayat-box" style="max-width:500px">
+      <h3>Rincian Transaksi</h3>
+      <p>
+        <b>ID:</b> ${trx.id}<br>
+        <b>Kasir:</b> ${trx.kasir}<br>
+        <b>Tanggal:</b> ${now.toLocaleString()}<br>
+        <b>Customer:</b> ${trx.customer || '-'}<br>
+        <b>Status Member:</b> ${trx.memberStatus || '-'}<br>
+        <b>Layanan:</b> ${trx.layanan}<br>
+        <b>Metode Bayar:</b> ${trx.bayar==='tunai'?'Tunai':'QRIS'}<br>
+        <b>Voucher:</b> ${trx.voucher ? 'Ya' : 'Tidak'}<br>
+        <b>Poin Didapat:</b> ${trx.poin || 0}<br>
+        <b>Total Poin:</b> ${trx.totalPoin || 0}
+      </p>
+
+      <table border="1" width="100%" cellspacing="0" cellpadding="4">
+        <tr>
+          <th>Menu</th>
+          <th>Qty</th>
+          <th>Harga</th>
+        </tr>
+        ${rows}
+      </table>
+
+      <p>
+        Subtotal: Rp ${trx.subtotal.toLocaleString()}<br>
+        Diskon: Rp ${trx.diskon.toLocaleString()}<br>
+        Pajak: Rp ${trx.pajak.toLocaleString()}<br>
+        <b>Total: Rp ${trx.total.toLocaleString()}</b><br>
+        Bayar: Rp ${trx.bayarAmount.toLocaleString()}<br>
+        ${trx.bayar==='tunai' ? `Kembalian: Rp ${trx.kembali.toLocaleString()}<br>` : ''}
+      </p>
+
+      <div style="text-align:center;margin-top:10px">
+        <button onclick="cetakUlangStruk(${idx})">Cetak Ulang Struk</button>
+        <button onclick="this.closest('.riwayat-overlay').remove()">Tutup</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+// ===== CETAK ULANG STRUK DARI DATA TRANSAKSI =====
+function cetakUlangStruk(idx){
+  const trx = laporan[idx];
+  const now = new Date(trx.date);
+
+  let rows = trx.items.map(it=>{
+    let toppingText = it.toppingPrice > 0 ? `(+Rp ${it.toppingPrice.toLocaleString()} topping)` : '';
+    return `<tr><td>${it.menu} ${toppingText}</td>
+      <td align='center'>${it.qty}</td>
+      <td align='right'>${it.harga.toLocaleString()}</td></tr>`;
+  }).join("");
+
+  let voucherHTML = trx.voucher ? `<div style='border:2px dashed #000;padding:8px;margin-top:8px;text-align:center'>
+    <b>LOYALTY VOUCHER</b><br>Voucher berlaku 3 bulan<br>
+    </div>` : '';
+
+  let memberHTML = trx.memberStatus ? `<p>Status Member: ${trx.memberStatus}<br>Poin Didapat: ${trx.poin || 0}<br>Total Poin: ${trx.totalPoin || 0}</p>` : '';
+
+  let strukHTML = `<div style='width:100mm;font-size:11px;font-family:monospace'>
+    <h3 style='text-align:center;margin:4px 0'>STRUK PEMBAYARAN</h3>
+    <p style='text-align:center;margin:2px 0'>Purnama Alam Coffee</p>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">
+      <div>
+        Customer: ${trx.customer || '-'}<br>
+        Metode Bayar: ${trx.bayar==='tunai'?'Tunai':'QRIS'}<br>
+        Layanan: ${trx.layanan}
+      </div>
+      <div>
+        ID: ${trx.id}<br>
+        Tanggal: ${now.toLocaleDateString()}<br>
+        Jam: ${now.toLocaleTimeString()}<br>
+        Kasir: ${trx.kasir}
+      </div>
+    </div>
+    <hr>
+    <table width='100%' border='1' cellspacing='0' cellpadding='4'>
+      <tr><th>Menu</th><th>Qty</th><th>Harga (Rp)</th></tr>
+      ${rows}
+    </table>
+
+    <p>
+      Subtotal: Rp ${trx.subtotal.toLocaleString()}<br>
+      Diskon: Rp ${trx.diskon.toLocaleString()}<br>
+      Pajak: Rp ${trx.pajak.toLocaleString()}<br>
+      <b>Total: Rp ${trx.total.toLocaleString()}</b><br>
+      Bayar: Rp ${trx.bayarAmount.toLocaleString()}<br>
+      ${trx.bayar==='tunai' ? `Kembalian: Rp ${trx.kembali.toLocaleString()}<br>` : ''}
+    </p>
+
+    ${memberHTML}
+    ${voucherHTML}
+
+    <p style='text-align:center;margin-top:10px'>Terima kasih ☕<br>Kami tunggu kedatangan Anda kembali</p>
+  </div>`;
+
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(strukHTML);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+}
+
+// ===== STEP 2: POPUP MEMBER (UI ONLY) =====
+function openMemberKasir(){
+  if(document.getElementById("memberOverlay")) return;
+
+  let overlay=document.createElement("div");
+  overlay.className="member-overlay";
+  overlay.id="memberOverlay";
+
+  overlay.innerHTML=`
+    <div class="member-popup">
+      <h3>Data Member</h3>
+
+      <label>No WhatsApp</label>
+      <input id="memberWa" type="text" oninput="validateWALive(this)">
+
+      <label>Nama Member</label>
+      <input id="memberNama" type="text">
+
+      <label>Tanggal Lahir</label>
+      <input id="memberTgl" type="date">
+
+      <label>Poin</label>
+	  <input id="memberPoin" type="number" disabled>
+	  
+	  <label>Jenis Member</label>
+	  <input id="memberJenis" type="text" disabled>
+
+      <div class="btn-group">
+		<button onclick="cariMemberKasir()">Cari</button>
+		<button onclick="simpanMemberKasir()">Simpan</button>
+		<button onclick="resetMemberKasir()">Reset</button>
+		<button onclick="closeMemberKasir()">Batal</button>
+		</div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  overlay.style.display="flex";
+}
+
+function closeMemberKasir(){
+  let o=document.getElementById("memberOverlay");
+  if(o) o.remove();
+}
+// ===== FIX STEP 3B: SIMPAN / UPDATE MEMBER (SINKRON ADMIN) =====
+function simpanMemberKasir(){
+  const waEl = document.getElementById("memberWa");
+  const namaEl = document.getElementById("memberNama");
+  const dobEl = document.getElementById("memberTgl");
+
+  if(!validateWALive(waEl)){
+    alert("Nomor WhatsApp tidak valid (gunakan format Indonesia)");
+    waEl.focus();
+    return;
+  }
+
+  const wa = waEl.value.trim();
+  const nama = namaEl.value.trim();
+  const dob = dobEl.value;
+
+  if(!wa || !nama || !dob){
+    alert("Lengkapi data member");
+    return;
+  }
+
+  let memberList = JSON.parse(localStorage.getItem("members")) || [];
+
+  if(memberList.find(m => m.wa === wa)){
+    alert("Nomor WhatsApp sudah terdaftar");
+    return;
+  }
+
+  memberList.push({
+    wa: wa,
+    n: nama,
+    dob: dob,
+    points: 10,          // ✅ poin awal
+    type: "Silver"
+  });
+
+  localStorage.setItem("members", JSON.stringify(memberList));
+  members = LS("members"); // update memory
+  if(adminPage) renderMembers(); // update tabel admin jika terbuka
+  alert("Member berhasil ditambahkan (Poin awal: 10)");
+  resetMemberKasir();
+
+}
+// ===== FIX STEP 3A: CARI MEMBER (SINKRON ADMIN) =====
+function cariMemberKasir(){
+  const wa = document.getElementById("memberWa").value.trim();
+  if(!wa){
+    alert("Masukkan nomor WhatsApp");
+    return;
+  }
+
+  let members = JSON.parse(localStorage.getItem("members")) || [];
+  let m = members.find(x => x.wa === wa);
+
+  if(!m){
+    alert("Member belum terdaftar, silakan isi data");
+    let memberMode = "new";
+    document.getElementById("memberNama").disabled = false;
+    document.getElementById("memberTgl").disabled = false;
+    document.getElementById("memberNama").focus();
+    return;
+  }
+
+  // AUTO ISI
+  document.getElementById("memberNama").value = m.n;
+  document.getElementById("memberTgl").value = m.dob;
+  document.getElementById("memberPoin").value = m.points;
+  document.getElementById("memberJenis").value = m.type;
+
+  // LOCK FIELD
+  document.getElementById("memberNama").disabled = true;
+  document.getElementById("memberTgl").disabled = true;
+
+  memberMode = "view";
+}
+function resetMemberKasir(){
+  document.getElementById("memberWa").value = "";
+  document.getElementById("memberNama").value = "";
+  document.getElementById("memberTgl").value = "";
+  document.getElementById("memberPoin").value = "";
+  document.getElementById("memberJenis").value = "";
+
+  document.getElementById("memberNama").disabled = false;
+  document.getElementById("memberTgl").disabled = false;
+
+  let memberMode = "new";
+  document.getElementById("memberWa").focus();
+}
+function formatWAIndonesia(raw){
+  let wa = raw.replace(/[^0-9]/g,"");
+
+  if(wa.startsWith("0")){
+    wa = "62" + wa.substring(1);
+  }
+
+  if(wa.startsWith("620")){
+    wa = "62" + wa.substring(3);
+  }
+
+  if(wa.startsWith("8")){
+    wa = "62" + wa;
+  }
+
+  return wa;
+}
+
+function isValidWAIndonesia(wa){
+  return /^628\d{8,11}$/.test(wa);
+}
+
+function validateWALive(input){
+  let formatted = formatWAIndonesia(input.value);
+  input.value = formatted;
+
+  if(formatted.length === 0){
+    input.classList.remove("wa-valid","wa-invalid");
+    return false;
+  }
+
+  if(isValidWAIndonesia(formatted)){
+    input.classList.add("wa-valid");
+    input.classList.remove("wa-invalid");
+    return true;
+  }else{
+    input.classList.add("wa-invalid");
+    input.classList.remove("wa-valid");
+    return false;
+  }
+}
+function lihatRiwayatMember(i){
+  const m = members[i];
+  const laporanData = LS("laporan") || [];
+
+  // filter transaksi milik member
+  const trx = laporanData.filter(l =>
+    l.customer === m.n || l.customer === m.wa
+  );
+
+  let totalBelanja = 0;
+  trx.forEach(t => totalBelanja += t.total);
+
+  let rows = trx.map(t=>{
+    let d = new Date(t.date);
+    return `<tr>
+      <td>${t.id}</td>
+      <td>${d.toLocaleString()}</td>
+      <td>${t.total.toLocaleString()}</td>
+      <td>${t.bayar === "tunai" ? "Tunai" : "QRIS"}</td>
+    </tr>`;
+  }).join("");
+
+  if(!rows) rows = `<tr><td colspan="4" align="center">Belum ada transaksi</td></tr>`;
+
+  const overlay = document.createElement("div");
+  overlay.className = "riwayat-overlay";
+  overlay.innerHTML = `
+    <div class="riwayat-box">
+      <h3>Riwayat Member</h3>
+      <p>
+        <b>Nama:</b> ${m.n}<br>
+        <b>WhatsApp:</b> ${m.wa}<br>
+        <b>Jenis:</b> ${m.type}<br>
+        <b>Total Transaksi:</b> ${trx.length}<br>
+        <b>Total Belanja:</b> Rp ${totalBelanja.toLocaleString()}
+      </p>
+
+      <table border="1" width="100%" cellspacing="0" cellpadding="4">
+        <tr>
+          <th>ID</th>
+          <th>Tanggal</th>
+          <th>Total</th>
+          <th>Bayar</th>
+        </tr>
+        ${rows}
+      </table>
+
+      <div style="text-align:center;margin-top:10px">
+        <button onclick="this.closest('.riwayat-overlay').remove()">Tutup</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+</script>
+</body>
+</html>
